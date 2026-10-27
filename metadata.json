@@ -1,0 +1,6 @@
+{
+  "name": "Aura Browser",
+  "description": "Modern smart web browser with intelligent tab groups, personalized search suggestions engine, speed dials, bookmarks, and fast navigation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

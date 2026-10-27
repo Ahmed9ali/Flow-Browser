@@ -73,7 +73,6 @@ fun SettingsScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .statusBarsPadding()
             .testTag("settings_screen")
     ) {
         // Settings Header

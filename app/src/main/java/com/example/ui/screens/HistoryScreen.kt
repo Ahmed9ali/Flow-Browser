@@ -99,7 +99,6 @@ fun HistoryScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .statusBarsPadding()
             .testTag("history_screen")
     ) {
         // History Top Header

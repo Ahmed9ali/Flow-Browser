@@ -77,6 +77,9 @@ class BrowserViewModel(
     private val _stopLoadingTrigger = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val stopLoadingTrigger: SharedFlow<Unit> = _stopLoadingTrigger.asSharedFlow()
 
+    private val _translateTrigger = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val translateTrigger: SharedFlow<String> = _translateTrigger.asSharedFlow()
+
     // Flow for suggestions computed reactively
     val speedDials: List<SpeedDial> = repository.speedDials
     val discoveryCategories: List<String> = suggestionsEngine.discoveryCategories
@@ -227,17 +230,11 @@ class BrowserViewModel(
         _snackbarMessage.value = "Proxy server switched to $node"
     }
 
-    fun translateCurrentPage() {
+    fun translateCurrentPage(targetLang: String = "en") {
         val activeTab = uiState.value.activeTab
         if (activeTab != null && !activeTab.url.startsWith("aura://") && activeTab.url != "about:blank") {
-            try {
-                val encodedUrl = URLEncoder.encode(activeTab.url, "UTF-8")
-                val translateUrl = "https://translate.google.com/translate?sl=auto&tl=en&u=$encodedUrl"
-                loadUrl(translateUrl)
-                _snackbarMessage.value = "Translating page via Google Translate..."
-            } catch (e: Exception) {
-                _snackbarMessage.value = "Translation ready"
-            }
+            _translateTrigger.tryEmit(targetLang)
+            _snackbarMessage.value = "Translating webpage to English in-place..."
         } else {
             _snackbarMessage.value = "Open a webpage first to translate it"
         }

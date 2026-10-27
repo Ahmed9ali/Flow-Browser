@@ -1,5 +1,6 @@
 package com.example.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -69,10 +70,13 @@ fun BrowserTopBar(
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
-                // Interactive Address Bar Pill (Full Width)
+                // Interactive Address Bar Pill (Full Width) with high contrast in both themes
                 Surface(
                     shape = RoundedCornerShape(24.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    border = BorderStroke(1.2.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
+                    tonalElevation = 3.dp,
+                    shadowElevation = 2.dp,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(46.dp)
@@ -85,16 +89,27 @@ fun BrowserTopBar(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 14.dp)
+                            .padding(horizontal = 10.dp)
                     ) {
-                        // SSL Lock or Home Shield Icon
+                        // SSL Lock or Home Shield Icon Badge
                         val isHome = activeTab?.url?.startsWith("aura://") == true || activeTab?.url == "about:blank"
-                        Icon(
-                            imageVector = if (isHome) Icons.Default.Shield else Icons.Default.Lock,
-                            contentDescription = if (isHome) "Aura Home" else "Secure Connection",
-                            tint = if (isHome) MaterialTheme.colorScheme.primary else Color(0xFF10B981),
-                            modifier = Modifier.size(17.dp)
-                        )
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (isHome) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                    else Color(0xFF10B981).copy(alpha = 0.14f)
+                                )
+                        ) {
+                            Icon(
+                                imageVector = if (isHome) Icons.Default.Shield else Icons.Default.Lock,
+                                contentDescription = if (isHome) "Aura Home" else "Secure Connection",
+                                tint = if (isHome) MaterialTheme.colorScheme.primary else Color(0xFF10B981),
+                                modifier = Modifier.size(15.dp)
+                            )
+                        }
 
                         // If tab is in a group, show colored group tag pill
                         if (activeGroup != null) {

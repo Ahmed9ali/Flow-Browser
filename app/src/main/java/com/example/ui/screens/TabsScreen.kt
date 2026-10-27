@@ -93,7 +93,6 @@ fun TabsScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .statusBarsPadding()
             .testTag("tabs_screen")
     ) {
         // Tabs Header & Actions Bar

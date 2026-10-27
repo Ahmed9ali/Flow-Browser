@@ -104,7 +104,6 @@ fun AutomationManagerScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .statusBarsPadding()
             .testTag("automation_manager_screen")
     ) {
         // Top Header Bar

@@ -65,6 +65,7 @@ fun WebViewScreen(
     automationEngine: AutomationEngine? = null,
     reloadTrigger: SharedFlow<Unit>? = null,
     stopLoadingTrigger: SharedFlow<Unit>? = null,
+    translateTrigger: SharedFlow<String>? = null,
     onOpenScriptManager: () -> Unit = {},
     onWebStateChanged: (
         title: String?,
@@ -111,6 +112,15 @@ fun WebViewScreen(
     LaunchedEffect(stopLoadingTrigger) {
         stopLoadingTrigger?.collect {
             webViewInstance?.stopLoading()
+        }
+    }
+
+    // Listen for in-place translation requests without bot detection
+    LaunchedEffect(translateTrigger) {
+        translateTrigger?.collect { targetLang ->
+            webViewInstance?.let { wv ->
+                executeInPageTranslation(wv, targetLang)
+            }
         }
     }
 
@@ -380,4 +390,129 @@ fun WebViewScreen(
             webViewInstance?.stopLoading()
         }
     }
+}
+
+private fun executeInPageTranslation(webView: WebView, targetLang: String) {
+    val jsCode = """
+        (function() {
+            try {
+                // Ensure floating translation pill
+                var banner = document.getElementById('__aura_tr_banner');
+                if (!banner) {
+                    banner = document.createElement('div');
+                    banner.id = '__aura_tr_banner';
+                    banner.style.cssText = 'position:fixed;top:12px;left:12px;right:12px;z-index:2147483647;background:#0f172a;color:#f8fafc;padding:10px 14px;border-radius:14px;box-shadow:0 6px 20px rgba(0,0,0,0.4);font-family:-apple-system,BlinkMacSystemFont,Roboto,sans-serif;font-size:13px;display:flex;align-items:center;justify-content:space-between;border:1px solid #334155;';
+                    document.body.appendChild(banner);
+                }
+                banner.innerHTML = '<div style="display:flex;align-items:center;gap:8px;"><span>🌐</span><span style="font-weight:600;">Translating page to ' + '$targetLang' + '...</span></div><button id="__aura_tr_close" style="background:#334155;color:#fff;border:none;border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer;">Dismiss</button>';
+                var closeBtn = document.getElementById('__aura_tr_close');
+                if (closeBtn) closeBtn.onclick = function() { banner.remove(); };
+
+                // First attempt: Google Translate element if allowed
+                if (!window.__auraGtInit) {
+                    window.__auraGtInit = true;
+                    var s = document.createElement('script');
+                    s.src = 'https://translate.google.com/translate_a/element.js?cb=__auraGtLoaded';
+                    s.onerror = function() {
+                        __auraTranslateDOM('$targetLang');
+                    };
+                    document.head.appendChild(s);
+
+                    window.__auraGtLoaded = function() {
+                        try {
+                            new google.translate.TranslateElement({pageLanguage: 'auto', autoDisplay: false}, '__aura_gt_container');
+                            setTimeout(function() {
+                                var sel = document.querySelector('.goog-te-combo');
+                                if (sel) {
+                                    sel.value = '$targetLang';
+                                    sel.dispatchEvent(new Event('change'));
+                                    banner.innerHTML = '<div style="display:flex;align-items:center;gap:8px;color:#10b981;"><span>✓</span><span style="font-weight:600;">Page translated</span></div><button id="__aura_tr_done" style="background:#334155;color:#fff;border:none;border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer;">Done</button>';
+                                    var doneBtn = document.getElementById('__aura_tr_done');
+                                    if (doneBtn) doneBtn.onclick = function() { banner.remove(); };
+                                    setTimeout(function() { if (banner) banner.remove(); }, 4000);
+                                } else {
+                                    __auraTranslateDOM('$targetLang');
+                                }
+                            }, 600);
+                        } catch(e) {
+                            __auraTranslateDOM('$targetLang');
+                        }
+                    };
+                } else {
+                    var sel = document.querySelector('.goog-te-combo');
+                    if (sel) {
+                        sel.value = '$targetLang';
+                        sel.dispatchEvent(new Event('change'));
+                        banner.innerHTML = '<div style="display:flex;align-items:center;gap:8px;color:#10b981;"><span>✓</span><span style="font-weight:600;">Page translated</span></div><button id="__aura_tr_done" style="background:#334155;color:#fff;border:none;border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer;">Done</button>';
+                        var doneBtn = document.getElementById('__aura_tr_done');
+                        if (doneBtn) doneBtn.onclick = function() { banner.remove(); };
+                        setTimeout(function() { if (banner) banner.remove(); }, 3500);
+                    } else {
+                        __auraTranslateDOM('$targetLang');
+                    }
+                }
+
+                function __auraTranslateDOM(lang) {
+                    var nodes = [];
+                    var walker = document.createTreeWalker(
+                        document.body,
+                        NodeFilter.SHOW_TEXT,
+                        {
+                            acceptNode: function(node) {
+                                if (!node.nodeValue || !node.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+                                var p = node.parentElement;
+                                if (!p) return NodeFilter.FILTER_REJECT;
+                                var tag = p.tagName.toLowerCase();
+                                if (tag === 'script' || tag === 'style' || tag === 'textarea' || tag === 'input' || tag === 'code' || tag === 'pre' || tag === 'noscript') {
+                                    return NodeFilter.FILTER_REJECT;
+                                }
+                                if (p.id && p.id.indexOf('__aura') === 0) return NodeFilter.FILTER_REJECT;
+                                if (node.nodeValue.trim().length > 3) return NodeFilter.FILTER_ACCEPT;
+                                return NodeFilter.FILTER_REJECT;
+                            }
+                        }
+                    );
+                    var curr;
+                    while ((curr = walker.nextNode()) && nodes.length < 80) {
+                        nodes.push(curr);
+                    }
+
+                    if (nodes.length === 0) {
+                        banner.innerHTML = '<span style="font-weight:600;">Page content is already displayed</span>';
+                        setTimeout(function() { if (banner) banner.remove(); }, 2500);
+                        return;
+                    }
+
+                    var completed = 0;
+                    nodes.forEach(function(node) {
+                        var orig = node.nodeValue.trim();
+                        var url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=' + lang + '&dt=t&q=' + encodeURIComponent(orig);
+                        fetch(url)
+                            .then(function(r) { return r.json(); })
+                            .then(function(data) {
+                                if (data && data[0]) {
+                                    var tr = data[0].map(function(c) { return c[0]; }).join('');
+                                    if (tr && tr.length > 0) {
+                                        node.nodeValue = tr;
+                                    }
+                                }
+                            })
+                            .catch(function(e) {})
+                            .finally(function() {
+                                completed++;
+                                if (completed >= nodes.length) {
+                                    banner.innerHTML = '<div style="display:flex;align-items:center;gap:8px;color:#10b981;"><span>✓</span><span style="font-weight:600;">Translated successfully (' + completed + ' items)</span></div><button id="__aura_tr_ok" style="background:#334155;color:#fff;border:none;border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer;">Done</button>';
+                                    var okBtn = document.getElementById('__aura_tr_ok');
+                                    if (okBtn) okBtn.onclick = function() { banner.remove(); };
+                                    setTimeout(function() { if (banner) banner.remove(); }, 4000);
+                                }
+                            });
+                    });
+                }
+            } catch(err) {
+                console.error("Aura translate error", err);
+            }
+        })();
+    """.trimIndent()
+    webView.evaluateJavascript(jsCode, null)
 }

@@ -186,7 +186,8 @@ fun BrowserApp(
                             onExecuteSearch = { query -> viewModel.executeSearch(query) },
                             onSelectSuggestion = { suggestion -> viewModel.selectSuggestion(suggestion) },
                             onClearQuery = { viewModel.clearSearchQuery() },
-                            onClearHistory = { viewModel.clearHistory() }
+                            onClearHistory = { viewModel.clearHistory() },
+                            onDeleteHistoryItem = { id -> viewModel.removeHistoryItem(id) }
                         )
                     }
 
@@ -316,6 +317,7 @@ fun BrowserApp(
                                 automationEngine = viewModel.automationEngine,
                                 reloadTrigger = viewModel.reloadTrigger,
                                 stopLoadingTrigger = viewModel.stopLoadingTrigger,
+                                translateTrigger = viewModel.translateTrigger,
                                 onOpenScriptManager = { viewModel.openAutomationManager() },
                                 onWebStateChanged = { title, url, progress, loading, canBack, canForward ->
                                     viewModel.updateWebState(

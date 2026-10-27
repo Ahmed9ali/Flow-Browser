@@ -82,7 +82,6 @@ fun BookmarksScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .statusBarsPadding()
             .testTag("bookmarks_screen")
     ) {
         // Bookmarks Header
